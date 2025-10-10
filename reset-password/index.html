@@ -106,31 +106,41 @@
     console.log("✅ Script chargé, DOM prêt");
 
     // 🔐 Vérifie si une session existe (lien de récupération Supabase)
-    async function initSession() {
-      try {
-        console.log("🔍 Vérification de session existante...");
-        const { data, error } = await supabase.auth.getUser();
+async function initSession() {
+  try {
+    console.log("🔍 Vérification de session existante...");
 
-        if (error || !data?.user) {
-          msg.textContent = "❌ Lien invalide ou expiré.";
-          msg.classList.add("error");
-          resetBtn.disabled = true;
-          console.warn("Aucune session active :", error);
-          return false;
-        }
-
-        console.log("✅ Session existante :", data.user);
-        msg.textContent = "✅ Session active. Vous pouvez définir un nouveau mot de passe.";
-        msg.classList.add("success");
-        return true;
-      } catch (err) {
-        console.error("Erreur de session :", err);
-        msg.textContent = "❌ Erreur lors de la vérification du lien.";
-        msg.classList.add("error");
-        resetBtn.disabled = true;
-        return false;
-      }
+    // 1️⃣ Si un code est dans l’URL, on échange pour une session
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("code")) {
+      console.log("🔑 Code trouvé, tentative de connexion...");
+      const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+      if (error) throw error;
+      console.log("✅ Session restaurée :", data);
     }
+
+    // 2️⃣ Vérifie que la session est bien active
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      msg.textContent = "❌ Lien invalide ou expiré.";
+      msg.classList.add("error");
+      resetBtn.disabled = true;
+      console.warn("Aucune session active :", userError);
+      return false;
+    }
+
+    console.log("✅ Session existante :", userData.user);
+    msg.textContent = "✅ Session active. Vous pouvez définir un nouveau mot de passe.";
+    msg.classList.add("success");
+    return true;
+  } catch (err) {
+    console.error("Erreur de session :", err);
+    msg.textContent = "❌ Erreur lors de la vérification du lien.";
+    msg.classList.add("error");
+    resetBtn.disabled = true;
+    return false;
+  }
+}
 
     // 🔎 Vérifie la force du mot de passe
     function validatePasswordStrength(pwd) {
@@ -202,3 +212,4 @@
   </script>
 </body>
 </html>
+
