@@ -3,105 +3,83 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Réinitialisation du mot de passe — TickTrack</title>
+  <title>Réinitialisation du mot de passe</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #f5f5f7;
-      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f6f8fa;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
     }
     .card {
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      padding: 32px;
-      width: 100%;
-      max-width: 380px;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 320px;
+    }
+    h1 {
       text-align: center;
-    }
-    h2 {
-      margin-bottom: 10px;
-      color: #1d1d1f;
-    }
-    p {
-      color: #555;
-      font-size: 0.95em;
-      margin-bottom: 24px;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
     }
     input {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 8px;
+      padding: 0.5rem;
+      margin: 0.4rem 0;
       border: 1px solid #ccc;
-      margin-bottom: 14px;
-      transition: border-color 0.2s;
-    }
-    input:focus {
-      border-color: #007aff;
-      outline: none;
+      border-radius: 0.4rem;
     }
     button {
       width: 100%;
-      background-color: #007aff;
-      color: white;
+      padding: 0.6rem;
+      margin-top: 0.8rem;
       border: none;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: 600;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      border-radius: 0.4rem;
       cursor: pointer;
-      transition: background-color 0.2s;
     }
-    button:hover {
-      background-color: #005ecb;
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
     }
     .msg {
-      margin-top: 16px;
-      font-size: 0.9em;
+      text-align: center;
+      margin-bottom: 1rem;
+      min-height: 1.5rem;
     }
-    .error {
-      color: #d93025;
-    }
-    .success {
-      color: #1e9c4c;
-    }
-    .requirements {
-      text-align: left;
-      font-size: 0.85em;
-      color: #666;
-      margin-top: 10px;
-      margin-bottom: 20px;
-    }
-    .requirements li {
-      margin-bottom: 4px;
+    .success { color: green; }
+    .error { color: red; }
+    ul {
+      font-size: 0.9rem;
+      padding-left: 1rem;
     }
   </style>
 </head>
-
 <body>
   <div class="card">
-    <h2>Réinitialisez votre mot de passe</h2>
-    <p>Veuillez saisir et confirmer un nouveau mot de passe conforme.</p>
+    <h1>Réinitialiser le mot de passe</h1>
+    <div id="msg" class="msg"></div>
 
-    <input id="password" type="password" placeholder="Nouveau mot de passe" />
-    <input id="password2" type="password" placeholder="Confirmer le mot de passe" />
+    <input type="password" id="password" placeholder="Nouveau mot de passe" />
+    <input type="password" id="password2" placeholder="Confirmez le mot de passe" />
 
-    <ul class="requirements">
+    <button id="resetBtn">Réinitialiser</button>
+
+    <ul>
       <li id="len">🔸 Au moins 8 caractères</li>
       <li id="maj">🔸 Une majuscule</li>
       <li id="num">🔸 Un chiffre</li>
-      <li id="spec">🔸 Un caractère spécial (!@#\$%^&*)</li>
+      <li id="spec">🔸 Un caractère spécial (!@#...)</li>
     </ul>
-
-    <button id="resetBtn">Confirmer</button>
-    <div id="msg" class="msg"></div>
   </div>
 
+  <!-- ⚠️ LE SCRIPT DOIT ÊTRE À LA FIN DU BODY -->
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -115,26 +93,58 @@
     const resetBtn = document.getElementById("resetBtn");
     const msg = document.getElementById("msg");
 
+    console.log("✅ Script chargé, DOM prêt");
+
+    async function initSession() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        if (!code) {
+          msg.textContent = "❌ Lien invalide ou expiré.";
+          msg.classList.add("error");
+          return false;
+        }
+
+        console.log("📬 Code détecté :", code);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+
+        console.log("✅ Session créée :", data.session);
+        msg.textContent = "✅ Session active, vous pouvez définir un nouveau mot de passe.";
+        msg.classList.add("success");
+        return true;
+      } catch (err) {
+        console.error("Erreur de session :", err);
+        msg.textContent = "❌ Lien invalide ou expiré.";
+        msg.classList.add("error");
+        resetBtn.disabled = true;
+        return false;
+      }
+    }
+
     function validatePasswordStrength(pwd) {
       const len = pwd.length >= 8;
       const maj = /[A-Z]/.test(pwd);
       const num = /\d/.test(pwd);
       const spec = /[!@#$%^&*]/.test(pwd);
-
-      document.getElementById("len").textContent = (len ? "✅" : "🔸") + " Au moins 8 caractères";
-      document.getElementById("maj").textContent = (maj ? "✅" : "🔸") + " Une majuscule";
-      document.getElementById("num").textContent = (num ? "✅" : "🔸") + " Un chiffre";
-      document.getElementById("spec").textContent = (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
-
+      document.getElementById("len").textContent =
+        (len ? "✅" : "🔸") + " Au moins 8 caractères";
+      document.getElementById("maj").textContent =
+        (maj ? "✅" : "🔸") + " Une majuscule";
+      document.getElementById("num").textContent =
+        (num ? "✅" : "🔸") + " Un chiffre";
+      document.getElementById("spec").textContent =
+        (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
       return len && maj && num && spec;
     }
 
-    passwordInput.addEventListener("input", () => validatePasswordStrength(passwordInput.value));
+    passwordInput.addEventListener("input", () =>
+      validatePasswordStrength(passwordInput.value)
+    );
 
     resetBtn.addEventListener("click", async () => {
       const pwd1 = passwordInput.value.trim();
       const pwd2 = password2Input.value.trim();
-
       msg.className = "msg";
 
       if (!pwd1 || !pwd2) {
@@ -150,21 +160,28 @@
       }
 
       if (!validatePasswordStrength(pwd1)) {
-        msg.textContent = "Le mot de passe ne respecte pas les critères de sécurité.";
+        msg.textContent = "Le mot de passe ne respecte pas les critères.";
         msg.classList.add("error");
         return;
       }
+
+      const ok = await initSession();
+      if (!ok) return;
 
       const { error } = await supabase.auth.updateUser({ password: pwd1 });
       if (error) {
         msg.textContent = "Erreur : " + error.message;
         msg.classList.add("error");
       } else {
-        msg.textContent = "✅ Mot de passe mis à jour avec succès !";
+        msg.textContent =
+          "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
         msg.classList.add("success");
         resetBtn.disabled = true;
       }
     });
+
+    // Initialise automatiquement la session au chargement
+    await initSession();
   </script>
 </body>
 </html>
