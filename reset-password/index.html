@@ -14,6 +14,7 @@
       height: 100vh;
       margin: 0;
     }
+
     .card {
       background: white;
       padding: 2rem;
@@ -21,11 +22,13 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
       width: 320px;
     }
+
     h1 {
       text-align: center;
       font-size: 1.4rem;
       margin-bottom: 1rem;
     }
+
     input {
       width: 100%;
       padding: 0.5rem;
@@ -33,6 +36,7 @@
       border: 1px solid #ccc;
       border-radius: 0.4rem;
     }
+
     button {
       width: 100%;
       padding: 0.6rem;
@@ -44,20 +48,25 @@
       border-radius: 0.4rem;
       cursor: pointer;
     }
+
     button:disabled {
       background: #ccc;
       cursor: not-allowed;
     }
+
     .msg {
       text-align: center;
       margin-bottom: 1rem;
       min-height: 1.5rem;
     }
+
     .success { color: green; }
     .error { color: red; }
+
     ul {
       font-size: 0.9rem;
       padding-left: 1rem;
+      list-style: none;
     }
   </style>
 </head>
@@ -79,15 +88,16 @@
     </ul>
   </div>
 
-  <!-- ⚠️ LE SCRIPT DOIT ÊTRE À LA FIN DU BODY -->
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+    // ✅ Création du client Supabase
     const supabase = createClient(
       "https://kqmczcojsygukexmkofp.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxbWN6Y29qc3lndWtleG1rb2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDEzMjQsImV4cCI6MjA3MjkxNzMyNH0.JfN2L-GCCOHE6k8ZsoX6YZaVIRjUCbaEiXU_TzXpBbQ"
     );
 
+    // 🧱 Sélection des éléments
     const passwordInput = document.getElementById("password");
     const password2Input = document.getElementById("password2");
     const resetBtn = document.getElementById("resetBtn");
@@ -95,38 +105,40 @@
 
     console.log("✅ Script chargé, DOM prêt");
 
+    // 🔐 Vérifie si une session existe (lien de récupération Supabase)
     async function initSession() {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        if (!code) {
+        console.log("🔍 Vérification de session existante...");
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error || !data?.user) {
           msg.textContent = "❌ Lien invalide ou expiré.";
           msg.classList.add("error");
+          resetBtn.disabled = true;
+          console.warn("Aucune session active :", error);
           return false;
         }
 
-        console.log("📬 Code détecté :", code);
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-
-        console.log("✅ Session créée :", data.session);
-        msg.textContent = "✅ Session active, vous pouvez définir un nouveau mot de passe.";
+        console.log("✅ Session existante :", data.user);
+        msg.textContent = "✅ Session active. Vous pouvez définir un nouveau mot de passe.";
         msg.classList.add("success");
         return true;
       } catch (err) {
         console.error("Erreur de session :", err);
-        msg.textContent = "❌ Lien invalide ou expiré.";
+        msg.textContent = "❌ Erreur lors de la vérification du lien.";
         msg.classList.add("error");
         resetBtn.disabled = true;
         return false;
       }
     }
 
+    // 🔎 Vérifie la force du mot de passe
     function validatePasswordStrength(pwd) {
       const len = pwd.length >= 8;
       const maj = /[A-Z]/.test(pwd);
       const num = /\d/.test(pwd);
       const spec = /[!@#$%^&*]/.test(pwd);
+
       document.getElementById("len").textContent =
         (len ? "✅" : "🔸") + " Au moins 8 caractères";
       document.getElementById("maj").textContent =
@@ -135,13 +147,16 @@
         (num ? "✅" : "🔸") + " Un chiffre";
       document.getElementById("spec").textContent =
         (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
+
       return len && maj && num && spec;
     }
 
+    // ⚙️ Gère la saisie du mot de passe
     passwordInput.addEventListener("input", () =>
       validatePasswordStrength(passwordInput.value)
     );
 
+    // 🚀 Réinitialisation du mot de passe
     resetBtn.addEventListener("click", async () => {
       const pwd1 = passwordInput.value.trim();
       const pwd2 = password2Input.value.trim();
@@ -165,9 +180,11 @@
         return;
       }
 
+      // 🔑 Vérifie la session avant mise à jour
       const ok = await initSession();
       if (!ok) return;
 
+      // 🔐 Mise à jour du mot de passe
       const { error } = await supabase.auth.updateUser({ password: pwd1 });
       if (error) {
         msg.textContent = "Erreur : " + error.message;
@@ -180,8 +197,8 @@
       }
     });
 
-    // Initialise automatiquement la session au chargement
-    await initSession();
+    // 🪄 Initialise automatiquement la session au chargement
+    window.addEventListener("DOMContentLoaded", initSession);
   </script>
 </body>
 </html>
