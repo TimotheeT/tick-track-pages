@@ -1,213 +1,118 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Réinitialisation du mot de passe — TickTrack</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #f5f5f7;
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      padding: 32px;
-      width: 100%;
-      max-width: 380px;
-      text-align: center;
-    }
-    h2 {
-      margin-bottom: 10px;
-      color: #1d1d1f;
-    }
-    p {
-      color: #555;
-      font-size: 0.95em;
-      margin-bottom: 24px;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      margin-bottom: 14px;
-      transition: border-color 0.2s;
-    }
-    input:focus {
-      border-color: #007aff;
-      outline: none;
-    }
-    button {
-      width: 100%;
-      background-color: #007aff;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #005ecb;
-    }
-    .msg {
-      margin-top: 16px;
-      font-size: 0.9em;
-    }
-    .error {
-      color: #d93025;
-    }
-    .success {
-      color: #1e9c4c;
-    }
-    .requirements {
-      text-align: left;
-      font-size: 0.85em;
-      color: #666;
-      margin-top: 10px;
-      margin-bottom: 20px;
-    }
-    .requirements li {
-      margin-bottom: 4px;
-    }
-  </style>
-</head>
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-<body>
-  <div class="card">
-    <h2>Réinitialisez votre mot de passe</h2>
-    <p>Veuillez saisir et confirmer un nouveau mot de passe conforme.</p>
+  const supabase = createClient(
+    "https://kqmczcojsygukexmkofp.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxbWN6Y29qc3lndWtleG1rb2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDEzMjQsImV4cCI6MjA3MjkxNzMyNH0.JfN2L-GCCOHE6k8ZsoX6YZaVIRjUCbaEiXU_TzXpBbQ"
+  );
 
-    <input id="password" type="password" placeholder="Nouveau mot de passe" />
-    <input id="password2" type="password" placeholder="Confirmer le mot de passe" />
+  const passwordInput = document.getElementById("password");
+  const password2Input = document.getElementById("password2");
+  const resetBtn = document.getElementById("resetBtn");
+  const msg = document.getElementById("msg");
 
-    <ul class="requirements">
-      <li id="len">🔸 Au moins 8 caractères</li>
-      <li id="maj">🔸 Une majuscule</li>
-      <li id="num">🔸 Un chiffre</li>
-      <li id="spec">🔸 Un caractère spécial (!@#\$%^&*)</li>
-    </ul>
+  // 🧩 Fonction robuste : gère à la fois ?code= et #access_token=
+  async function initSession() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
-    <button id="resetBtn">Confirmer</button>
-    <div id="msg" class="msg"></div>
-  </div>
+      const code = params.get("code");
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      const type = hashParams.get("type");
 
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    const supabase = createClient(
-      "https://kqmczcojsygukexmkofp.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxbWN6Y29qc3lndWtleG1rb2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDEzMjQsImV4cCI6MjA3MjkxNzMyNH0.JfN2L-GCCOHE6k8ZsoX6YZaVIRjUCbaEiXU_TzXpBbQ"
-    );
-
-    const passwordInput = document.getElementById("password");
-    const password2Input = document.getElementById("password2");
-    const resetBtn = document.getElementById("resetBtn");
-    const msg = document.getElementById("msg");
-
-    async function initSession() {
-      try {
-        // 1️⃣ Si lien avec code dans query (?code=...)
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          return true;
-        }
-
-        // 2️⃣ Sinon, si lien hashé (#access_token=...)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        const type = hashParams.get("type");
-
-        if (type === "recovery" && accessToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error) throw error;
-          return true;
-        }
-
-        msg.textContent = "Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
-        msg.classList.add("error");
-        resetBtn.disabled = true;
-        return false;
-      } catch (e) {
-        msg.textContent = "Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
-        msg.classList.add("error");
-        resetBtn.disabled = true;
-        return false;
-      }
-    }
-
-    function validatePasswordStrength(pwd) {
-      const len = pwd.length >= 8;
-      const maj = /[A-Z]/.test(pwd);
-      const num = /\d/.test(pwd);
-      const spec = /[!@#$%^&*]/.test(pwd);
-
-      document.getElementById("len").textContent = (len ? "✅" : "🔸") + " Au moins 8 caractères";
-      document.getElementById("maj").textContent = (maj ? "✅" : "🔸") + " Une majuscule";
-      document.getElementById("num").textContent = (num ? "✅" : "🔸") + " Un chiffre";
-      document.getElementById("spec").textContent = (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
-
-      return len && maj && num && spec;
-    }
-
-    passwordInput.addEventListener("input", () => validatePasswordStrength(passwordInput.value));
-
-    resetBtn.addEventListener("click", async () => {
-      const pwd1 = passwordInput.value.trim();
-      const pwd2 = password2Input.value.trim();
-
-      msg.className = "msg";
-
-      if (!pwd1 || !pwd2) {
-        msg.textContent = "Veuillez remplir les deux champs.";
-        msg.classList.add("error");
-        return;
+      // 🔹 Cas 1 : lien type hash (#access_token)
+      if (type === "recovery" && accessToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) throw error;
+        return true;
       }
 
-      if (pwd1 !== pwd2) {
-        msg.textContent = "Les mots de passe ne correspondent pas.";
-        msg.classList.add("error");
-        return;
+      // 🔹 Cas 2 : lien type query (?code=...)
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        return true;
       }
 
-      if (!validatePasswordStrength(pwd1)) {
-        msg.textContent = "Le mot de passe ne respecte pas les critères de sécurité.";
-        msg.classList.add("error");
-        return;
-      }
+      // Aucun token valide trouvé
+      throw new Error("No valid recovery token found");
+    } catch (e) {
+      console.error(e);
+      msg.textContent =
+        "Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
+      msg.classList.add("error");
+      resetBtn.disabled = true;
+      return false;
+    }
+  }
 
-      // Vérifie ou crée la session
-      const ok = await initSession();
-      if (!ok) return;
+  // 🧮 Validation du mot de passe
+  function validatePasswordStrength(pwd) {
+    const len = pwd.length >= 8;
+    const maj = /[A-Z]/.test(pwd);
+    const num = /\d/.test(pwd);
+    const spec = /[!@#$%^&*]/.test(pwd);
 
-      const { error } = await supabase.auth.updateUser({ password: pwd1 });
-      if (error) {
-        msg.textContent = "Erreur : " + error.message;
-        msg.classList.add("error");
-      } else {
-        msg.textContent = "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
-        msg.classList.add("success");
-        resetBtn.disabled = true;
-      }
-    });
-  </script>
-</body>
-</html>
+    document.getElementById("len").textContent =
+      (len ? "✅" : "🔸") + " Au moins 8 caractères";
+    document.getElementById("maj").textContent =
+      (maj ? "✅" : "🔸") + " Une majuscule";
+    document.getElementById("num").textContent =
+      (num ? "✅" : "🔸") + " Un chiffre";
+    document.getElementById("spec").textContent =
+      (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
+
+    return len && maj && num && spec;
+  }
+
+  passwordInput.addEventListener("input", () =>
+    validatePasswordStrength(passwordInput.value)
+  );
+
+  // 🚀 Réinitialisation
+  resetBtn.addEventListener("click", async () => {
+    const pwd1 = passwordInput.value.trim();
+    const pwd2 = password2Input.value.trim();
+
+    msg.className = "msg";
+
+    if (!pwd1 || !pwd2) {
+      msg.textContent = "Veuillez remplir les deux champs.";
+      msg.classList.add("error");
+      return;
+    }
+
+    if (pwd1 !== pwd2) {
+      msg.textContent = "Les mots de passe ne correspondent pas.";
+      msg.classList.add("error");
+      return;
+    }
+
+    if (!validatePasswordStrength(pwd1)) {
+      msg.textContent = "Le mot de passe ne respecte pas les critères.";
+      msg.classList.add("error");
+      return;
+    }
+
+    // 🔑 Vérifie ou crée la session
+    const ok = await initSession();
+    if (!ok) return;
+
+    // 🔐 Met à jour le mot de passe
+    const { error } = await supabase.auth.updateUser({ password: pwd1 });
+    if (error) {
+      msg.textContent = "Erreur : " + error.message;
+      msg.classList.add("error");
+    } else {
+      msg.textContent =
+        "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
+      msg.classList.add("success");
+      resetBtn.disabled = true;
+    }
+  });
+</script>
