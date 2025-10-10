@@ -11,7 +11,7 @@
   const resetBtn = document.getElementById("resetBtn");
   const msg = document.getElementById("msg");
 
-  // 🧩 Fonction robuste : gère à la fois ?code= et #access_token=
+  // 🔄 Vérifie ou crée une session à partir du lien de récupération
   async function initSession() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -22,7 +22,7 @@
       const refreshToken = hashParams.get("refresh_token");
       const type = hashParams.get("type");
 
-      // 🔹 Cas 1 : lien type hash (#access_token)
+      // 🔹 Cas 1 : lien avec #access_token (ancien comportement)
       if (type === "recovery" && accessToken) {
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -32,26 +32,32 @@
         return true;
       }
 
-      // 🔹 Cas 2 : lien type query (?code=...)
+      // 🔹 Cas 2 : lien avec ?code= (comportement standard actuel Supabase)
       if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
+
+        // Stocke la session localement pour éviter de la perdre sur reload
+        if (data.session) {
+          localStorage.setItem("supabaseSession", JSON.stringify(data.session));
+        }
+
         return true;
       }
 
-      // Aucun token valide trouvé
-      throw new Error("No valid recovery token found");
+      // Aucun token trouvé
+      throw new Error("Aucun token de récupération trouvé.");
     } catch (e) {
-      console.error(e);
+      console.error("Erreur d'initialisation de session :", e);
       msg.textContent =
-        "Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
+        "❌ Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
       msg.classList.add("error");
       resetBtn.disabled = true;
       return false;
     }
   }
 
-  // 🧮 Validation du mot de passe
+  // 🧮 Vérifie la force du mot de passe
   function validatePasswordStrength(pwd) {
     const len = pwd.length >= 8;
     const maj = /[A-Z]/.test(pwd);
@@ -74,7 +80,7 @@
     validatePasswordStrength(passwordInput.value)
   );
 
-  // 🚀 Réinitialisation
+  // 🚀 Gestion du clic sur "Réinitialiser"
   resetBtn.addEventListener("click", async () => {
     const pwd1 = passwordInput.value.trim();
     const pwd2 = password2Input.value.trim();
@@ -99,11 +105,11 @@
       return;
     }
 
-    // 🔑 Vérifie ou crée la session
+    // 🔑 Assure-toi que la session est active
     const ok = await initSession();
     if (!ok) return;
 
-    // 🔐 Met à jour le mot de passe
+    // 🔐 Mise à jour du mot de passe
     const { error } = await supabase.auth.updateUser({ password: pwd1 });
     if (error) {
       msg.textContent = "Erreur : " + error.message;
@@ -115,4 +121,8 @@
       resetBtn.disabled = true;
     }
   });
+
+  // 🪄 Initialise la session automatiquement au chargement
+  // (utile si la page est rechargée après clic sur le lien)
+  window.addEventListener("DOMContentLoaded", initSession);
 </script>
