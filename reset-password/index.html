@@ -1,128 +1,101 @@
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  const supabase = createClient(
-    "https://kqmczcojsygukexmkofp.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxbWN6Y29qc3lndWtleG1rb2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDEzMjQsImV4cCI6MjA3MjkxNzMyNH0.JfN2L-GCCOHE6k8ZsoX6YZaVIRjUCbaEiXU_TzXpBbQ"
-  );
+  window.addEventListener("DOMContentLoaded", async () => {
+    console.log("✅ DOM chargé, exécution du script.");
 
-  const passwordInput = document.getElementById("password");
-  const password2Input = document.getElementById("password2");
-  const resetBtn = document.getElementById("resetBtn");
-  const msg = document.getElementById("msg");
+    const supabase = createClient(
+      "https://kqmczcojsygukexmkofp.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxbWN6Y29qc3lndWtleG1rb2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDEzMjQsImV4cCI6MjA3MjkxNzMyNH0.JfN2L-GCCOHE6k8ZsoX6YZaVIRjUCbaEiXU_TzXpBbQ"
+    );
 
-  // 🔄 Vérifie ou crée une session à partir du lien de récupération
-  async function initSession() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const passwordInput = document.getElementById("password");
+    const password2Input = document.getElementById("password2");
+    const resetBtn = document.getElementById("resetBtn");
+    const msg = document.getElementById("msg");
 
-      const code = params.get("code");
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-      const type = hashParams.get("type");
+    if (!passwordInput || !password2Input || !resetBtn || !msg) {
+      console.error("❌ Les éléments HTML ne sont pas présents dans la page !");
+      return;
+    }
 
-      // 🔹 Cas 1 : lien avec #access_token (ancien comportement)
-      if (type === "recovery" && accessToken) {
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (error) throw error;
-        return true;
-      }
-
-      // 🔹 Cas 2 : lien avec ?code= (comportement standard actuel Supabase)
-      if (code) {
+    async function initSession() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        if (!code) {
+          msg.textContent = "Lien invalide ou expiré.";
+          msg.classList.add("error");
+          return false;
+        }
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
-
-        // Stocke la session localement pour éviter de la perdre sur reload
-        if (data.session) {
-          localStorage.setItem("supabaseSession", JSON.stringify(data.session));
-        }
-
+        console.log("✅ Session active :", data);
+        msg.textContent = "✅ Session active. Vous pouvez réinitialiser votre mot de passe.";
+        msg.classList.add("success");
         return true;
+      } catch (e) {
+        console.error("Erreur d'init session :", e);
+        msg.textContent = "❌ Lien invalide ou expiré.";
+        msg.classList.add("error");
+        return false;
       }
-
-      // Aucun token trouvé
-      throw new Error("Aucun token de récupération trouvé.");
-    } catch (e) {
-      console.error("Erreur d'initialisation de session :", e);
-      msg.textContent =
-        "❌ Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
-      msg.classList.add("error");
-      resetBtn.disabled = true;
-      return false;
-    }
-  }
-
-  // 🧮 Vérifie la force du mot de passe
-  function validatePasswordStrength(pwd) {
-    const len = pwd.length >= 8;
-    const maj = /[A-Z]/.test(pwd);
-    const num = /\d/.test(pwd);
-    const spec = /[!@#$%^&*]/.test(pwd);
-
-    document.getElementById("len").textContent =
-      (len ? "✅" : "🔸") + " Au moins 8 caractères";
-    document.getElementById("maj").textContent =
-      (maj ? "✅" : "🔸") + " Une majuscule";
-    document.getElementById("num").textContent =
-      (num ? "✅" : "🔸") + " Un chiffre";
-    document.getElementById("spec").textContent =
-      (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
-
-    return len && maj && num && spec;
-  }
-
-  passwordInput.addEventListener("input", () =>
-    validatePasswordStrength(passwordInput.value)
-  );
-
-  // 🚀 Gestion du clic sur "Réinitialiser"
-  resetBtn.addEventListener("click", async () => {
-    const pwd1 = passwordInput.value.trim();
-    const pwd2 = password2Input.value.trim();
-
-    msg.className = "msg";
-
-    if (!pwd1 || !pwd2) {
-      msg.textContent = "Veuillez remplir les deux champs.";
-      msg.classList.add("error");
-      return;
     }
 
-    if (pwd1 !== pwd2) {
-      msg.textContent = "Les mots de passe ne correspondent pas.";
-      msg.classList.add("error");
-      return;
+    function validatePasswordStrength(pwd) {
+      const len = pwd.length >= 8;
+      const maj = /[A-Z]/.test(pwd);
+      const num = /\d/.test(pwd);
+      const spec = /[!@#$%^&*]/.test(pwd);
+      document.getElementById("len").textContent =
+        (len ? "✅" : "🔸") + " Au moins 8 caractères";
+      document.getElementById("maj").textContent =
+        (maj ? "✅" : "🔸") + " Une majuscule";
+      document.getElementById("num").textContent =
+        (num ? "✅" : "🔸") + " Un chiffre";
+      document.getElementById("spec").textContent =
+        (spec ? "✅" : "🔸") + " Un caractère spécial (!@#...)";
+      return len && maj && num && spec;
     }
 
-    if (!validatePasswordStrength(pwd1)) {
-      msg.textContent = "Le mot de passe ne respecte pas les critères.";
-      msg.classList.add("error");
-      return;
-    }
+    passwordInput.addEventListener("input", () =>
+      validatePasswordStrength(passwordInput.value)
+    );
 
-    // 🔑 Assure-toi que la session est active
-    const ok = await initSession();
-    if (!ok) return;
+    resetBtn.addEventListener("click", async () => {
+      const pwd1 = passwordInput.value.trim();
+      const pwd2 = password2Input.value.trim();
+      msg.className = "msg";
+      if (!pwd1 || !pwd2) {
+        msg.textContent = "Veuillez remplir les deux champs.";
+        msg.classList.add("error");
+        return;
+      }
+      if (pwd1 !== pwd2) {
+        msg.textContent = "Les mots de passe ne correspondent pas.";
+        msg.classList.add("error");
+        return;
+      }
+      if (!validatePasswordStrength(pwd1)) {
+        msg.textContent = "Le mot de passe ne respecte pas les critères.";
+        msg.classList.add("error");
+        return;
+      }
+      const ok = await initSession();
+      if (!ok) return;
+      const { error } = await supabase.auth.updateUser({ password: pwd1 });
+      if (error) {
+        msg.textContent = "Erreur : " + error.message;
+        msg.classList.add("error");
+      } else {
+        msg.textContent =
+          "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
+        msg.classList.add("success");
+        resetBtn.disabled = true;
+      }
+    });
 
-    // 🔐 Mise à jour du mot de passe
-    const { error } = await supabase.auth.updateUser({ password: pwd1 });
-    if (error) {
-      msg.textContent = "Erreur : " + error.message;
-      msg.classList.add("error");
-    } else {
-      msg.textContent =
-        "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
-      msg.classList.add("success");
-      resetBtn.disabled = true;
-    }
+    // Initialise automatiquement la session si lien contient ?code=
+    await initSession();
   });
-
-  // 🪄 Initialise la session automatiquement au chargement
-  // (utile si la page est rechargée après clic sur le lien)
-  window.addEventListener("DOMContentLoaded", initSession);
 </script>
