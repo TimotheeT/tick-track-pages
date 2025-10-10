@@ -1,8 +1,87 @@
-<script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Réinitialisation du mot de passe</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f6f8fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 320px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      margin: 0.4rem 0;
+      border: 1px solid #ccc;
+      border-radius: 0.4rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.8rem;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      border-radius: 0.4rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .msg {
+      text-align: center;
+      margin-bottom: 1rem;
+      min-height: 1.5rem;
+    }
+    .success { color: green; }
+    .error { color: red; }
+    ul {
+      font-size: 0.9rem;
+      padding-left: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Réinitialiser le mot de passe</h1>
+    <div id="msg" class="msg"></div>
 
-  window.addEventListener("DOMContentLoaded", async () => {
-    console.log("✅ DOM chargé, exécution du script.");
+    <input type="password" id="password" placeholder="Nouveau mot de passe" />
+    <input type="password" id="password2" placeholder="Confirmez le mot de passe" />
+
+    <button id="resetBtn">Réinitialiser</button>
+
+    <ul>
+      <li id="len">🔸 Au moins 8 caractères</li>
+      <li id="maj">🔸 Une majuscule</li>
+      <li id="num">🔸 Un chiffre</li>
+      <li id="spec">🔸 Un caractère spécial (!@#...)</li>
+    </ul>
+  </div>
+
+  <!-- ⚠️ LE SCRIPT DOIT ÊTRE À LA FIN DU BODY -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
     const supabase = createClient(
       "https://kqmczcojsygukexmkofp.supabase.co",
@@ -14,30 +93,31 @@
     const resetBtn = document.getElementById("resetBtn");
     const msg = document.getElementById("msg");
 
-    if (!passwordInput || !password2Input || !resetBtn || !msg) {
-      console.error("❌ Les éléments HTML ne sont pas présents dans la page !");
-      return;
-    }
+    console.log("✅ Script chargé, DOM prêt");
 
     async function initSession() {
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
         if (!code) {
-          msg.textContent = "Lien invalide ou expiré.";
+          msg.textContent = "❌ Lien invalide ou expiré.";
           msg.classList.add("error");
           return false;
         }
+
+        console.log("📬 Code détecté :", code);
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
-        console.log("✅ Session active :", data);
-        msg.textContent = "✅ Session active. Vous pouvez réinitialiser votre mot de passe.";
+
+        console.log("✅ Session créée :", data.session);
+        msg.textContent = "✅ Session active, vous pouvez définir un nouveau mot de passe.";
         msg.classList.add("success");
         return true;
-      } catch (e) {
-        console.error("Erreur d'init session :", e);
+      } catch (err) {
+        console.error("Erreur de session :", err);
         msg.textContent = "❌ Lien invalide ou expiré.";
         msg.classList.add("error");
+        resetBtn.disabled = true;
         return false;
       }
     }
@@ -66,23 +146,28 @@
       const pwd1 = passwordInput.value.trim();
       const pwd2 = password2Input.value.trim();
       msg.className = "msg";
+
       if (!pwd1 || !pwd2) {
         msg.textContent = "Veuillez remplir les deux champs.";
         msg.classList.add("error");
         return;
       }
+
       if (pwd1 !== pwd2) {
         msg.textContent = "Les mots de passe ne correspondent pas.";
         msg.classList.add("error");
         return;
       }
+
       if (!validatePasswordStrength(pwd1)) {
         msg.textContent = "Le mot de passe ne respecte pas les critères.";
         msg.classList.add("error");
         return;
       }
+
       const ok = await initSession();
       if (!ok) return;
+
       const { error } = await supabase.auth.updateUser({ password: pwd1 });
       if (error) {
         msg.textContent = "Erreur : " + error.message;
@@ -95,7 +180,8 @@
       }
     });
 
-    // Initialise automatiquement la session si lien contient ?code=
+    // Initialise automatiquement la session au chargement
     await initSession();
-  });
-</script>
+  </script>
+</body>
+</html>
