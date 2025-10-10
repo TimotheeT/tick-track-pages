@@ -115,6 +115,34 @@
     const resetBtn = document.getElementById("resetBtn");
     const msg = document.getElementById("msg");
 
+    // ✅ Étape 1 : Récupérer le token depuis l’URL (ex: #access_token=...&type=recovery)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get("access_token");
+    const refreshToken = hashParams.get("refresh_token");
+    const type = hashParams.get("type");
+
+    async function initSession() {
+      if (type !== "recovery" || !accessToken) {
+        msg.textContent = "Lien invalide ou expiré. Veuillez redemander un email de réinitialisation.";
+        msg.classList.add("error");
+        resetBtn.disabled = true;
+        return false;
+      }
+
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+
+      if (error) {
+        msg.textContent = "Erreur de session : " + error.message;
+        msg.classList.add("error");
+        resetBtn.disabled = true;
+        return false;
+      }
+      return true;
+    }
+
     function validatePasswordStrength(pwd) {
       const len = pwd.length >= 8;
       const maj = /[A-Z]/.test(pwd);
@@ -155,12 +183,17 @@
         return;
       }
 
+      // ✅ Étape 2 : Vérifie que la session est valide avant de changer le mot de passe
+      const ok = await initSession();
+      if (!ok) return;
+
+      // ✅ Étape 3 : Mise à jour du mot de passe via Supabase
       const { error } = await supabase.auth.updateUser({ password: pwd1 });
       if (error) {
         msg.textContent = "Erreur : " + error.message;
         msg.classList.add("error");
       } else {
-        msg.textContent = "✅ Mot de passe mis à jour avec succès !";
+        msg.textContent = "✅ Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous reconnecter.";
         msg.classList.add("success");
         resetBtn.disabled = true;
       }
